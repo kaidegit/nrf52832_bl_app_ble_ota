@@ -32,11 +32,11 @@
 #include "nrf_sdh_freertos.h"
 #include "nrf_sdh_soc.h"
 #include "SEGGER_RTT.h"
+#include "board_pins.h"
 #include "elog_port.h"
 
 #define APP_BLE_OBSERVER_PRIO           3
 #define APP_BLE_CONN_CFG_TAG            1
-#define APP_LED_PIN                     29
 #define APP_RAM_START                   0x20003000UL
 #define APP_ADV_INTERVAL                64
 #define APP_ADV_DURATION                18000
@@ -72,6 +72,72 @@ static bool m_rtt_reused;
 
 static void advertising_start(void * p_context);
 
+#define APP_RTT_LOG(...) do { SEGGER_RTT_printf(0, __VA_ARGS__); SEGGER_RTT_WriteString(0, "\r\n"); } while (0)
+
+static const char * dfu_evt_name(ble_dfu_buttonless_evt_type_t event)
+{
+    switch (event)
+    {
+        case BLE_DFU_EVT_BOOTLOADER_ENTER_PREPARE:
+            return "BOOTLOADER_ENTER_PREPARE";
+        case BLE_DFU_EVT_BOOTLOADER_ENTER:
+            return "BOOTLOADER_ENTER";
+        case BLE_DFU_EVT_BOOTLOADER_ENTER_FAILED:
+            return "BOOTLOADER_ENTER_FAILED";
+        case BLE_DFU_EVT_RESPONSE_SEND_ERROR:
+            return "RESPONSE_SEND_ERROR";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+static const char * sdh_state_name(nrf_sdh_state_evt_t state)
+{
+    switch (state)
+    {
+        case NRF_SDH_EVT_STATE_ENABLE_PREPARE:
+            return "ENABLE_PREPARE";
+        case NRF_SDH_EVT_STATE_ENABLED:
+            return "ENABLED";
+        case NRF_SDH_EVT_STATE_DISABLE_PREPARE:
+            return "DISABLE_PREPARE";
+        case NRF_SDH_EVT_STATE_DISABLED:
+            return "DISABLED";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+static const char * pwr_mgmt_evt_name(nrf_pwr_mgmt_evt_t event)
+{
+    switch (event)
+    {
+        case NRF_PWR_MGMT_EVT_PREPARE_WAKEUP:
+            return "PREPARE_WAKEUP";
+        case NRF_PWR_MGMT_EVT_PREPARE_SYSOFF:
+            return "PREPARE_SYSOFF";
+        case NRF_PWR_MGMT_EVT_PREPARE_DFU:
+            return "PREPARE_DFU";
+        case NRF_PWR_MGMT_EVT_PREPARE_RESET:
+            return "PREPARE_RESET";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+static uint8_t app_gpregret_get(uint32_t reg_id)
+{
+    uint32_t value = 0;
+
+    if (nrf_sdh_is_enabled() &&
+        (sd_power_gpregret_get(reg_id, &value) == NRF_SUCCESS))
+    {
+        return (uint8_t)value;
+    }
+
+    return reg_id == 0 ? nrf_power_gpregret_get() : nrf_power_gpregret2_get();
+}
+
 static bool rtt_early_init(void)
 {
     if (!m_rtt_initialized)
@@ -85,7 +151,11 @@ static bool rtt_early_init(void)
 
 static bool app_shutdown_handler(nrf_pwr_mgmt_evt_t event)
 {
-    UNUSED_PARAMETER(event);
+    APP_RTT_LOG("[APP] pwr_mgmt event %s (%u), GPREGRET=0x%02x GPREGRET2=0x%02x",
+                pwr_mgmt_evt_name(event),
+                (unsigned int)event,
+                app_gpregret_get(0),
+                app_gpregret_get(1));
     return true;
 }
 
@@ -95,10 +165,15 @@ static void buttonless_dfu_sdh_state_observer(nrf_sdh_state_evt_t state, void * 
 {
     UNUSED_PARAMETER(p_context);
 
+    APP_RTT_LOG("[APP] SoftDevice state %s (%u)", sdh_state_name(state), (unsigned int)state);
+
     if (state == NRF_SDH_EVT_STATE_DISABLED)
     {
-        NRF_LOG_INFO("SoftDevice disabled, entering bootloader path");
+        APP_RTT_LOG("[APP] SoftDevice disabled, setting GPREGRET2 skip CRC");
         nrf_power_gpregret2_set(BOOTLOADER_DFU_SKIP_CRC);
+        APP_RTT_LOG("[APP] GPREGRET=0x%02x GPREGRET2=0x%02x before SYSOFF",
+                    nrf_power_gpregret_get(),
+                    nrf_power_gpregret2_get());
         nrf_pwr_mgmt_shutdown(NRF_PWR_MGMT_SHUTDOWN_GOTO_SYSOFF);
     }
 }
@@ -225,26 +300,50 @@ static void advertising_config_get(ble_adv_modes_config_t * p_config)
 
 static void ble_dfu_evt_handler(ble_dfu_buttonless_evt_type_t event)
 {
+    APP_RTT_LOG("[APP] DFU event %s (%u), conn=0x%04x, GPREGRET=0x%02x GPREGRET2=0x%02x",
+                dfu_evt_name(event),
+                (unsigned int)event,
+                m_conn_handle,
+                app_gpregret_get(0),
+                app_gpregret_get(1));
+
     if (event == BLE_DFU_EVT_BOOTLOADER_ENTER_PREPARE)
     {
-        NRF_LOG_INFO("DFU prepare: disconnect and stop advertising-on-disconnect");
+        APP_RTT_LOG("[APP] DFU prepare: stop advertising-on-disconnect");
         ble_adv_modes_config_t config;
         advertising_config_get(&config);
         config.ble_adv_on_disconnect_disabled = true;
         ble_advertising_modes_config_set(&m_advertising, &config);
+        APP_RTT_LOG("[APP] DFU prepare: advertising config updated");
 
         if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
         {
             ret_code_t err_code =
                 sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+            APP_RTT_LOG("[APP] DFU prepare: sd_ble_gap_disconnect(0x%04x) -> 0x%08x",
+                        m_conn_handle,
+                        (unsigned int)err_code);
             if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_INVALID_STATE))
             {
                 APP_ERROR_CHECK(err_code);
             }
         }
+        else
+        {
+            APP_RTT_LOG("[APP] DFU prepare: no active connection to disconnect");
+        }
+    }
+    else if (event == BLE_DFU_EVT_BOOTLOADER_ENTER)
+    {
+        APP_RTT_LOG("[APP] DFU enter: bootloader library will request GOTO_DFU reset");
+    }
+    else if (event == BLE_DFU_EVT_BOOTLOADER_ENTER_FAILED)
+    {
+        APP_RTT_LOG("[APP] DFU enter failed");
     }
     else if (event == BLE_DFU_EVT_RESPONSE_SEND_ERROR)
     {
+        APP_RTT_LOG("[APP] DFU response send error");
         APP_ERROR_CHECK(false);
     }
 }
@@ -331,30 +430,71 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
         {
             ret_code_t err_code;
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+            APP_RTT_LOG("[APP] BLE connected: conn=0x%04x", m_conn_handle);
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
+            APP_RTT_LOG("[APP] QWR assign conn=0x%04x -> 0x%08x",
+                        m_conn_handle,
+                        (unsigned int)err_code);
             APP_ERROR_CHECK(err_code);
             break;
         }
 
         case BLE_GAP_EVT_DISCONNECTED:
+            APP_RTT_LOG("[APP] BLE disconnected: conn=0x%04x reason=0x%02x",
+                        p_ble_evt->evt.gap_evt.conn_handle,
+                        p_ble_evt->evt.gap_evt.params.disconnected.reason);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
             break;
 
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
         {
+            APP_RTT_LOG("[APP] BLE PHY update request: conn=0x%04x",
+                        p_ble_evt->evt.gap_evt.conn_handle);
             ble_gap_phys_t const phys = {BLE_GAP_PHY_AUTO, BLE_GAP_PHY_AUTO};
             ret_code_t err_code =
                 sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
+            APP_RTT_LOG("[APP] sd_ble_gap_phy_update -> 0x%08x", (unsigned int)err_code);
             APP_ERROR_CHECK(err_code);
             break;
         }
 
         case BLE_GATTS_EVT_SYS_ATTR_MISSING:
         {
+            APP_RTT_LOG("[APP] BLE sys attr missing: conn=0x%04x",
+                        p_ble_evt->evt.gatts_evt.conn_handle);
             ret_code_t err_code = sd_ble_gatts_sys_attr_set(m_conn_handle, NULL, 0, 0);
+            APP_RTT_LOG("[APP] sd_ble_gatts_sys_attr_set -> 0x%08x", (unsigned int)err_code);
             APP_ERROR_CHECK(err_code);
             break;
         }
+
+        case BLE_GATTS_EVT_RW_AUTHORIZE_REQUEST:
+        {
+            ble_gatts_evt_rw_authorize_request_t const * p_auth =
+                &p_ble_evt->evt.gatts_evt.params.authorize_request;
+            if (p_auth->type == BLE_GATTS_AUTHORIZE_TYPE_WRITE)
+            {
+                APP_RTT_LOG("[APP] BLE authorize write: conn=0x%04x handle=0x%04x op=0x%02x len=%u first=0x%02x",
+                            p_ble_evt->evt.gatts_evt.conn_handle,
+                            p_auth->request.write.handle,
+                            p_auth->request.write.op,
+                            p_auth->request.write.len,
+                            p_auth->request.write.len > 0 ? p_auth->request.write.data[0] : 0);
+            }
+            else
+            {
+                APP_RTT_LOG("[APP] BLE authorize request: conn=0x%04x type=0x%02x",
+                            p_ble_evt->evt.gatts_evt.conn_handle,
+                            p_auth->type);
+            }
+            break;
+        }
+
+        case BLE_GATTS_EVT_HVC:
+            APP_RTT_LOG("[APP] BLE HVC: conn=0x%04x handle=0x%04x",
+                        p_ble_evt->evt.gatts_evt.conn_handle,
+                        p_ble_evt->evt.gatts_evt.params.hvc.handle);
+            break;
 
         default:
             break;
@@ -394,12 +534,12 @@ static void heartbeat_task(void * p_context)
 {
     UNUSED_PARAMETER(p_context);
 
-    nrf_gpio_cfg_output(APP_LED_PIN);
-    nrf_gpio_pin_clear(APP_LED_PIN);
+    nrf_gpio_cfg_output(APP_HEARTBEAT_LED_PIN);
+    nrf_gpio_pin_clear(APP_HEARTBEAT_LED_PIN);
 
     for (;;)
     {
-        nrf_gpio_pin_toggle(APP_LED_PIN);
+        nrf_gpio_pin_toggle(APP_HEARTBEAT_LED_PIN);
         NRF_LOG_INFO("hello world");
         vTaskDelay(pdMS_TO_TICKS(APP_LOG_PERIOD_MS));
     }
@@ -408,7 +548,9 @@ static void heartbeat_task(void * p_context)
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char * pcTaskName)
 {
     UNUSED_PARAMETER(xTask);
-    UNUSED_PARAMETER(pcTaskName);
+    SEGGER_RTT_WriteString(0, "[APP] stack overflow in task: ");
+    SEGGER_RTT_WriteString(0, pcTaskName ? pcTaskName : "<unknown>");
+    SEGGER_RTT_WriteString(0, "\r\n");
     APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
 }
 

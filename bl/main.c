@@ -11,11 +11,19 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 #include "nrf_mbr.h"
+#include "nrf_gpio.h"
 #include "SEGGER_RTT.h"
+#include "../src/board_pins.h"
 #include "../src/elog_port.h"
 
 static bool m_rtt_initialized;
 static bool m_rtt_reused;
+
+static void status_led_init(void)
+{
+    nrf_gpio_cfg_output(BOOTLOADER_STATUS_LED_PIN);
+    nrf_gpio_pin_clear(BOOTLOADER_STATUS_LED_PIN);
+}
 
 static bool rtt_early_init(void)
 {
@@ -69,8 +77,8 @@ void app_error_handler_bare(uint32_t error_code)
 
 static void dfu_observer(nrf_dfu_evt_type_t evt_type)
 {
-    UNUSED_PARAMETER(evt_type);
-    NRF_LOG_INFO("DFU event");
+    nrf_gpio_pin_toggle(BOOTLOADER_STATUS_LED_PIN);
+    NRF_LOG_INFO("DFU event %u", (unsigned int)evt_type);
 }
 
 int main(void)
@@ -80,6 +88,7 @@ int main(void)
     uint32_t ret_val;
 
     log_init();
+    status_led_init();
     NRF_LOG_INFO("Bootloader entry");
 
     nrf_bootloader_mbr_addrs_populate();
