@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../nordic/nRF5_SDK_17.1.0_ddde560"
+		},
+		{
+			"path": "../../nordic/s113nrf52720"
+		}
+	],
+	"settings": {}
+}
