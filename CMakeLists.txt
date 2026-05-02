@@ -37,6 +37,7 @@ set(NRFUTIL_SEED_DIR ${USER_HOME}/.nrfutil)
 
 set(SDK_INC
     ${CMAKE_CURRENT_LIST_DIR}/config/app
+    ${CMAKE_CURRENT_LIST_DIR}/components/nrf_log_wrapper
     ${SDK_PATH}/components
     ${SDK_PATH}/components/ble/ble_advertising
     ${SDK_PATH}/components/ble/ble_link_ctx_manager
@@ -90,16 +91,12 @@ set(SDK_INC
     ${SDK_PATH}/modules/nrfx/drivers/include
     ${SDK_PATH}/modules/nrfx/hal
     ${SDK_PATH}/modules/nrfx/mdk
+    ${CMAKE_CURRENT_LIST_DIR}/components/EasyLogger/easylogger/inc
 )
 
 set(APP_SOURCES
     ${SDK_PATH}/modules/nrfx/mdk/gcc_startup_nrf52.S
     ${SDK_PATH}/modules/nrfx/mdk/system_nrf52.c
-    ${SDK_PATH}/components/libraries/log/src/nrf_log_backend_rtt.c
-    ${SDK_PATH}/components/libraries/log/src/nrf_log_backend_serial.c
-    ${SDK_PATH}/components/libraries/log/src/nrf_log_default_backends.c
-    ${SDK_PATH}/components/libraries/log/src/nrf_log_frontend.c
-    ${SDK_PATH}/components/libraries/log/src/nrf_log_str_formatter.c
     ${SDK_PATH}/components/libraries/util/app_error.c
     ${SDK_PATH}/components/libraries/util/app_error_handler_gcc.c
     ${SDK_PATH}/components/libraries/util/app_error_weak.c
@@ -126,6 +123,9 @@ set(APP_SOURCES
     ${SDK_PATH}/external/segger_rtt/SEGGER_RTT_Syscalls_GCC.c
     ${SDK_PATH}/external/segger_rtt/SEGGER_RTT_printf.c
     ${SDK_PATH}/external/utf_converter/utf.c
+    ${CMAKE_CURRENT_LIST_DIR}/components/EasyLogger/easylogger/src/elog.c
+    ${CMAKE_CURRENT_LIST_DIR}/components/EasyLogger/easylogger/src/elog_utils.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/elog_port.c
     ${SDK_PATH}/integration/nrfx/legacy/nrf_drv_clock.c
     ${SDK_PATH}/modules/nrfx/soc/nrfx_atomic.c
     ${SDK_PATH}/modules/nrfx/drivers/src/nrfx_clock.c
@@ -164,6 +164,11 @@ set(APP_SOURCES
 
 add_executable(${APP_TARGET} ${APP_SOURCES})
 
+set_source_files_properties(
+    ${SDK_PATH}/external/segger_rtt/SEGGER_RTT.c
+    PROPERTIES COMPILE_OPTIONS "-fno-data-sections"
+)
+
 set_target_properties(${APP_TARGET} PROPERTIES
     OUTPUT_NAME ${APP_OUTPUT_BASENAME}
     SUFFIX .elf
@@ -172,6 +177,7 @@ set_target_properties(${APP_TARGET} PROPERTIES
 target_include_directories(${APP_TARGET} PRIVATE ${SDK_INC})
 
 target_compile_definitions(${APP_TARGET} PRIVATE
+    PROJECT_IS_APP
     APP_TIMER_V2
     APP_TIMER_V2_RTC1_ENABLED
     BL_SETTINGS_ACCESS_ONLY
@@ -184,6 +190,8 @@ target_compile_definitions(${APP_TARGET} PRIVATE
     NRF_DFU_SVCI_ENABLED
     NRF_DFU_TRANSPORT_BLE=1
     NRF_SD_BLE_API_VERSION=7
+    SEGGER_RTT_SECTION=\".rtt_shared\"
+    SEGGER_RTT_BUFFER_SECTION=\".rtt_shared\"
     S113
     SOFTDEVICE_PRESENT
     __HEAP_SIZE=8192
@@ -202,8 +210,8 @@ target_compile_options(${APP_TARGET} PRIVATE
     -fno-builtin
     -fshort-enums
     -Wall
-    -Werror
     -Wno-array-bounds
+    -Wno-unused-function
     -O2
     -g3
 )

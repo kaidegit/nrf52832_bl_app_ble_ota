@@ -31,6 +31,8 @@
 #include "nrf_sdh_ble.h"
 #include "nrf_sdh_freertos.h"
 #include "nrf_sdh_soc.h"
+#include "SEGGER_RTT.h"
+#include "elog_port.h"
 
 #define APP_BLE_OBSERVER_PRIO           3
 #define APP_BLE_CONN_CFG_TAG            1
@@ -65,8 +67,21 @@ static ble_uuid_t m_adv_uuids[] =
 {
     {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE},
 };
+static bool m_rtt_initialized;
+static bool m_rtt_reused;
 
 static void advertising_start(void * p_context);
+
+static bool rtt_early_init(void)
+{
+    if (!m_rtt_initialized)
+    {
+        m_rtt_reused = elog_port_rtt_init();
+        m_rtt_initialized = true;
+    }
+
+    return m_rtt_reused;
+}
 
 static bool app_shutdown_handler(nrf_pwr_mgmt_evt_t event)
 {
@@ -100,10 +115,14 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 
 static void log_init(void)
 {
+    bool rtt_reused = rtt_early_init();
+    SEGGER_RTT_WriteString(0, "[APP] log_init enter\r\n");
+
     ret_code_t err_code = NRF_LOG_INIT(NULL);
     APP_ERROR_CHECK(err_code);
-
     NRF_LOG_DEFAULT_BACKENDS_INIT();
+    NRF_LOG_INFO("RTT %s", rtt_reused ? "reused across image jump" : "initialized");
+    SEGGER_RTT_WriteString(0, "[APP] log_init done\r\n");
 }
 
 static void clock_init(void)
@@ -395,6 +414,8 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char * pcTaskName)
 
 int main(void)
 {
+    (void)rtt_early_init();
+    SEGGER_RTT_WriteString(0, "[APP] main enter\r\n");
     ret_code_t err_code;
 
     log_init();

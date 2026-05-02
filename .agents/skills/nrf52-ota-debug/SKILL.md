@@ -5,7 +5,7 @@ description: Build, flash, and live-attach for this nRF52832 OTA demo. Use when 
 
 # nrf52-ota-debug
 
-Run the exact debug loop for this project in order:
+Run the exact debug loop for this project in order: **You MUST run these cmd one by one**
 
 1. Build full image:
 `cmake --build build --target full_hex`
@@ -14,7 +14,7 @@ Run the exact debug loop for this project in order:
 `cmake --build build --target flash_all`
 
 3. Attach and collect runtime logs:
-`probe-rs attach --chip nrf52832_xxAA /Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/build/nrf52832_s113_app.elf`
+`probe-rs attach --chip nrf52832_xxAA build/nrf52832_s113_app.elf`
 
 If `probe-rs attach` is interactive, keep it running long enough to capture crash output, then stop with Ctrl+C.
 

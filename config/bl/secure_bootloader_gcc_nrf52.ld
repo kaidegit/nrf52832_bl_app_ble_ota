@@ -5,12 +5,22 @@ GROUP(-lgcc -lc -lnosys)
 
 MEMORY
 {
-  FLASH (rx) : ORIGIN = 0x70000, LENGTH = 0x8000
-  RAM (rwx) :  ORIGIN = 0x20002608, LENGTH = 0xD9F8
+  FLASH (rx) : ORIGIN = 0x6C000, LENGTH = 0xC000
+  RAM (rwx) :  ORIGIN = 0x20002608, LENGTH = 0xD5F8
+  RTT_SHARED (rw) : ORIGIN = 0x2000FC00, LENGTH = 0x400
   uicr_bootloader_start_address (r) : ORIGIN = 0x10001014, LENGTH = 0x4
   bootloader_settings_page (r) : ORIGIN = 0x0007F000, LENGTH = 0x1000
   uicr_mbr_params_page (r) : ORIGIN = 0x10001018, LENGTH = 0x4
   mbr_params_page (r) : ORIGIN = 0x0007E000, LENGTH = 0x1000
+}
+
+SECTIONS
+{
+  . = ALIGN(4);
+  .rtt_shared(NOLOAD) :
+  {
+    KEEP(*(.rtt_shared*))
+  } > RTT_SHARED
 }
 
 SECTIONS

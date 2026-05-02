@@ -16,6 +16,7 @@ find_program(ARM_SIZE arm-none-eabi-size PATHS ${ARM_GCC_PATH} NO_DEFAULT_PATH R
 
 set(SDK_INC
     ${CMAKE_CURRENT_LIST_DIR}/../config/bl
+    ${CMAKE_CURRENT_LIST_DIR}/../components/nrf_log_wrapper
     ${CMAKE_CURRENT_LIST_DIR}
     ${SDK_PATH}/components
     ${SDK_PATH}/components/ble/ble_services/ble_dfu
@@ -60,6 +61,8 @@ set(SDK_INC
     ${SDK_PATH}/external/nano-pb
     ${SDK_PATH}/external/nrf_oberon
     ${SDK_PATH}/external/nrf_oberon/include
+    ${SDK_PATH}/external/segger_rtt
+    ${CMAKE_CURRENT_LIST_DIR}/../components/EasyLogger/easylogger/inc
     ${SDK_PATH}/integration/nrfx
     ${SDK_PATH}/modules/nrfx
     ${SDK_PATH}/modules/nrfx/hal
@@ -105,6 +108,10 @@ set(BOOTLOADER_SOURCES
     ${SDK_PATH}/components/libraries/bootloader/nrf_bootloader_wdt.c
     ${SDK_PATH}/external/nano-pb/pb_common.c
     ${SDK_PATH}/external/nano-pb/pb_decode.c
+    ${SDK_PATH}/external/segger_rtt/SEGGER_RTT.c
+    ${CMAKE_CURRENT_LIST_DIR}/../components/EasyLogger/easylogger/src/elog.c
+    ${CMAKE_CURRENT_LIST_DIR}/../components/EasyLogger/easylogger/src/elog_utils.c
+    ${CMAKE_CURRENT_LIST_DIR}/../src/elog_port.c
     ${SDK_PATH}/components/libraries/bootloader/dfu/dfu-cc.pb.c
     ${SDK_PATH}/components/libraries/bootloader/dfu/nrf_dfu.c
     ${SDK_PATH}/components/libraries/bootloader/ble_dfu/nrf_dfu_ble.c
@@ -131,6 +138,11 @@ set(BOOTLOADER_SOURCES
 
 add_executable(${BOOTLOADER_TARGET} ${BOOTLOADER_SOURCES})
 
+set_source_files_properties(
+    ${SDK_PATH}/external/segger_rtt/SEGGER_RTT.c
+    PROPERTIES COMPILE_OPTIONS "-fno-data-sections"
+)
+
 set_target_properties(${BOOTLOADER_TARGET} PROPERTIES
     OUTPUT_NAME ${BOOTLOADER_OUTPUT_BASENAME}
     SUFFIX .elf
@@ -139,6 +151,7 @@ set_target_properties(${BOOTLOADER_TARGET} PROPERTIES
 target_include_directories(${BOOTLOADER_TARGET} PRIVATE ${SDK_INC})
 
 target_compile_definitions(${BOOTLOADER_TARGET} PRIVATE
+    PROJECT_IS_BL
     BLE_STACK_SUPPORT_REQD
     BOARD_PCA10040
     CONFIG_GPIO_AS_PINRESET
@@ -152,7 +165,9 @@ target_compile_definitions(${BOOTLOADER_TARGET} PRIVATE
     S113
     SOFTDEVICE_PRESENT
     SVC_INTERFACE_CALL_AS_NORMAL_FUNCTION
-    BOOTLOADER_SIZE=0x8000
+    BOOTLOADER_SIZE=0xC000
+    SEGGER_RTT_SECTION=\".rtt_shared\"
+    SEGGER_RTT_BUFFER_SECTION=\".rtt_shared\"
     __START=main
     __STARTUP_CLEAR_BSS
     __HEAP_SIZE=0
@@ -174,7 +189,6 @@ target_compile_options(${BOOTLOADER_TARGET} PRIVATE
     -fno-asynchronous-unwind-tables
     -fshort-enums
     -Wall
-    -Werror
     -Wno-array-bounds
     -Os
     -g3

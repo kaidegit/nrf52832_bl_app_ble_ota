@@ -5,8 +5,18 @@ GROUP(-lgcc -lc -lnosys)
 
 MEMORY
 {
-  FLASH (rx) : ORIGIN = 0x1C000, LENGTH = 0x54000
-  RAM (rwx) :  ORIGIN = 0x20003000, LENGTH = 0xD000
+  FLASH (rx) : ORIGIN = 0x1C000, LENGTH = 0x50000
+  RAM (rwx) :  ORIGIN = 0x20003000, LENGTH = 0xCC00
+  RTT_SHARED (rw) : ORIGIN = 0x2000FC00, LENGTH = 0x400
+}
+
+SECTIONS
+{
+  . = ALIGN(4);
+  .rtt_shared(NOLOAD) :
+  {
+    KEEP(*(.rtt_shared*))
+  } > RTT_SHARED
 }
 
 SECTIONS

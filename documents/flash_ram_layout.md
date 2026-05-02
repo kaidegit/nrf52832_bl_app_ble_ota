@@ -15,8 +15,8 @@
 |---|---:|---:|---:|---|
 | MBR | `0x00000000` | `0x00000FFF` | `0x1000` / 4 KB | Nordic MBR |
 | SoftDevice S113 | `0x00001000` | `0x0001BFFF` | `0x1B000` / 108 KB | 由 App 起始地址反推 |
-| App | `0x0001C000` | `0x0006FFFF` | `0x54000` / 336 KB | [config/app/app_gcc_nrf52.ld](/Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/config/app/app_gcc_nrf52.ld:8) |
-| Bootloader | `0x00070000` | `0x00077FFF` | `0x8000` / 32 KB | [config/bl/secure_bootloader_gcc_nrf52.ld](/Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/config/bl/secure_bootloader_gcc_nrf52.ld:8) |
+| App | `0x0001C000` | `0x0006BFFF` | `0x50000` / 320 KB | [config/app/app_gcc_nrf52.ld](/Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/config/app/app_gcc_nrf52.ld:8) |
+| Bootloader | `0x0006C000` | `0x00077FFF` | `0xC000` / 48 KB | [config/bl/secure_bootloader_gcc_nrf52.ld](/Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/config/bl/secure_bootloader_gcc_nrf52.ld:8) |
 | MBR Params Page | `0x0007E000` | `0x0007EFFF` | `0x1000` / 4 KB | Bootloader / MBR 参数页 |
 | Bootloader Settings | `0x0007F000` | `0x0007FFFF` | `0x1000` / 4 KB | DFU settings 页 |
 
@@ -33,29 +33,33 @@
 
 | 区域 | 起始地址 | 结束地址 | 大小 | 说明 |
 |---|---:|---:|---:|---|
-| App RAM | `0x20003000` | `0x2000FFFF` | `0xD000` / 52 KB | [config/app/app_gcc_nrf52.ld](/Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/config/app/app_gcc_nrf52.ld:9) |
+| App RAM | `0x20003000` | `0x2000FBFF` | `0xCC00` / 51 KB | [config/app/app_gcc_nrf52.ld](/Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/config/app/app_gcc_nrf52.ld:9) |
+| RTT Shared | `0x2000FC00` | `0x2000FFFF` | `0x400` / 1 KB | [config/app/app_gcc_nrf52.ld](/Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/config/app/app_gcc_nrf52.ld:10) |
 
 说明：
 
 - `0x20000000 - 0x20002FFF` 预留给 `SoftDevice + 协议栈`。
 - App 当前使用 FreeRTOS，链接区里已经包含任务栈、静态数据和堆空间预算。
+- `0x2000FC00 - 0x2000FFFF` 为 RTT Shared 内存区，App 与 Bootloader 共用同一地址，用于调试通道共享。
 
 ### Bootloader RAM
 
 | 区域 | 起始地址 | 结束地址 | 大小 | 说明 |
 |---|---:|---:|---:|---|
-| Bootloader RAM | `0x20002608` | `0x2000FFFF` | `0xD9F8` / 55,800 bytes | [config/bl/secure_bootloader_gcc_nrf52.ld](/Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/config/bl/secure_bootloader_gcc_nrf52.ld:9) |
+| Bootloader RAM | `0x20002608` | `0x2000FBFF` | `0xD5F8` / 54,968 bytes | [config/bl/secure_bootloader_gcc_nrf52.ld](/Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/config/bl/secure_bootloader_gcc_nrf52.ld:9) |
+| RTT Shared | `0x2000FC00` | `0x2000FFFF` | `0x400` / 1 KB | [config/bl/secure_bootloader_gcc_nrf52.ld](/Volumes/aigo_1t/DevPkgs/demos/nrf52832_bl_app_ble_ota/config/bl/secure_bootloader_gcc_nrf52.ld:10) |
 
 说明：
 
 - `0x20000000 - 0x20002607` 由 `SoftDevice` 占用。
 - Bootloader RAM 起点低于 App RAM 起点，这是正常的；两者分别按各自场景单独链接。
+- `0x2000FC00 - 0x2000FFFF` 为 RTT Shared 内存区，App 与 Bootloader 共用同一地址，用于调试通道共享。
 
 ## 当前构建产物的实际占用
 
 ### App
 
-- 链接区域：`Flash 0x1C000 - 0x6FFFF`，总配额 `0x54000`
+- 链接区域：`Flash 0x1C000 - 0x6BFFF`，总配额 `0x50000`
 - 当前镜像大小：
   - `text = 30464`
   - `data = 72`
@@ -65,7 +69,7 @@
 
 ### Bootloader
 
-- 链接区域：`Flash 0x70000 - 0x77FFF`，总配额 `0x8000`
+- 链接区域：`Flash 0x6C000 - 0x77FFF`，总配额 `0xC000`
 - 当前镜像大小：
   - `text = 24384`
   - `data = 68`
