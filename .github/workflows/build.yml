@@ -43,6 +43,9 @@ jobs:
           echo "${NORDIC_DIR}" >> "$GITHUB_PATH"
           echo "${NORDIC_DIR}/nrf-command-line-tools/bin" >> "$GITHUB_PATH"
 
+      - name: Install nrfutil nrf5sdk-tools
+        run: nrfutil install nrf5sdk-tools
+
       - name: Configure CMake
         run: |
           SDK_PATH="${{ runner.temp }}/nordic/nRF5_SDK_17.1.0_ddde560"
