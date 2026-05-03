@@ -1,0 +1,75 @@
+name: Build nRF52832 Full Hex and OTA Package
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ARM GNU Toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.3.Rel1'
+
+      - name: Download SDK, SoftDevice and Nordic tools from release
+        run: |
+          RELEASE_URL="https://github.com/kaidegit/nrf52832_bl_app_ble_ota/releases/download/0.0"
+          mkdir -p ${{ runner.temp }}/nordic
+          cd ${{ runner.temp }}/nordic
+
+          curl -L -o nRF5_SDK_17.1.0_ddde560.zip "${RELEASE_URL}/nRF5_SDK_17.1.0_ddde560.zip"
+          curl -L -o s113nrf52720.zip "${RELEASE_URL}/s113nrf52720.zip"
+          curl -L -o nrf-command-line-tools.tar.gz "${RELEASE_URL}/nrf-command-line-tools-10.24.2_linux-amd64.tar.gz"
+          curl -L -o nrfutil "${RELEASE_URL}/nrfutil"
+
+          unzip -q nRF5_SDK_17.1.0_ddde560.zip
+          unzip -q s113nrf52720.zip
+          tar -xzf nrf-command-line-tools.tar.gz
+          chmod +x nrfutil
+
+      - name: Add tools to PATH
+        run: |
+          NORDIC_DIR="${{ runner.temp }}/nordic"
+          echo "${NORDIC_DIR}" >> "$GITHUB_PATH"
+          echo "${NORDIC_DIR}/nrf-command-line-tools/bin" >> "$GITHUB_PATH"
+
+      - name: Configure CMake
+        run: |
+          SDK_PATH="${{ runner.temp }}/nordic/nRF5_SDK_17.1.0_ddde560"
+          SOFTDEVICE_PATH="${{ runner.temp }}/nordic/s113nrf52720"
+          SOFTDEVICE_HEX="${SOFTDEVICE_PATH}/s113_nrf52_7.2.0_softdevice.hex"
+          ARM_GCC_PATH=$(dirname $(which arm-none-eabi-gcc))
+
+          cmake -B build -G Ninja \
+            -DARM_GCC_PATH="${ARM_GCC_PATH}" \
+            -DSDK_PATH="${SDK_PATH}" \
+            -DSOFTDEVICE_PATH="${SOFTDEVICE_PATH}" \
+            -DSOFTDEVICE_HEX="${SOFTDEVICE_HEX}"
+
+      - name: Build full hex
+        run: cmake --build build --target full_hex
+
+      - name: Build OTA zip
+        run: cmake --build build --target ota_zip
+
+      - name: Upload full hex artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-hex
+          path: build/nrf52832_s113_full.hex
+          retention-days: 30
+
+      - name: Upload OTA package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ota-package
+          path: build/nrf52832_s113_app_dfu_v*.zip
+          retention-days: 30
