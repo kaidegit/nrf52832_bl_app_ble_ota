@@ -91,6 +91,7 @@ set(SDK_INC
     ${SDK_PATH}/modules/nrfx/drivers/include
     ${SDK_PATH}/modules/nrfx/hal
     ${SDK_PATH}/modules/nrfx/mdk
+    ${CMAKE_CURRENT_LIST_DIR}/components/elog_port
     ${CMAKE_CURRENT_LIST_DIR}/components/EasyLogger/easylogger/inc
 )
 
@@ -125,7 +126,7 @@ set(APP_SOURCES
     ${SDK_PATH}/external/utf_converter/utf.c
     ${CMAKE_CURRENT_LIST_DIR}/components/EasyLogger/easylogger/src/elog.c
     ${CMAKE_CURRENT_LIST_DIR}/components/EasyLogger/easylogger/src/elog_utils.c
-    ${CMAKE_CURRENT_LIST_DIR}/src/elog_port.c
+    ${CMAKE_CURRENT_LIST_DIR}/components/elog_port/elog_port.c
     ${SDK_PATH}/integration/nrfx/legacy/nrf_drv_clock.c
     ${SDK_PATH}/modules/nrfx/soc/nrfx_atomic.c
     ${SDK_PATH}/modules/nrfx/drivers/src/nrfx_clock.c

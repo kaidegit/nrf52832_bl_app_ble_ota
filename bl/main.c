@@ -14,7 +14,7 @@
 #include "nrf_gpio.h"
 #include "SEGGER_RTT.h"
 #include "../src/board_pins.h"
-#include "../src/elog_port.h"
+#include "elog_port.h"
 
 static bool m_rtt_initialized;
 static bool m_rtt_reused;

@@ -62,6 +62,7 @@ set(SDK_INC
     ${SDK_PATH}/external/nrf_oberon
     ${SDK_PATH}/external/nrf_oberon/include
     ${SDK_PATH}/external/segger_rtt
+    ${CMAKE_CURRENT_LIST_DIR}/../components/elog_port
     ${CMAKE_CURRENT_LIST_DIR}/../components/EasyLogger/easylogger/inc
     ${SDK_PATH}/integration/nrfx
     ${SDK_PATH}/modules/nrfx
@@ -111,7 +112,7 @@ set(BOOTLOADER_SOURCES
     ${SDK_PATH}/external/segger_rtt/SEGGER_RTT.c
     ${CMAKE_CURRENT_LIST_DIR}/../components/EasyLogger/easylogger/src/elog.c
     ${CMAKE_CURRENT_LIST_DIR}/../components/EasyLogger/easylogger/src/elog_utils.c
-    ${CMAKE_CURRENT_LIST_DIR}/../src/elog_port.c
+    ${CMAKE_CURRENT_LIST_DIR}/../components/elog_port/elog_port.c
     ${SDK_PATH}/components/libraries/bootloader/dfu/dfu-cc.pb.c
     ${SDK_PATH}/components/libraries/bootloader/dfu/nrf_dfu.c
     ${SDK_PATH}/components/libraries/bootloader/ble_dfu/nrf_dfu_ble.c
