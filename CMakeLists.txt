@@ -271,7 +271,7 @@ add_custom_target(bl DEPENDS bootloader_project)
 
 add_custom_target(ota_zip
     DEPENDS ${APP_TARGET}
-    COMMAND ${CMAKE_COMMAND} -E chdir ${NRFUTIL_HOME} sh -c "test -e .nrfutil || ln -s ${NRFUTIL_SEED_DIR} .nrfutil"
+    COMMAND ${CMAKE_COMMAND} -E chdir ${NRFUTIL_HOME} sh -c "echo \"[ota_zip] PWD=\$(pwd) .nrfutil exists?=\$(test -e .nrfutil && echo YES || echo NO) type=\$(file .nrfutil 2>/dev/null || echo missing)\"; test -e .nrfutil || ln -sv ${NRFUTIL_SEED_DIR} .nrfutil; ls -la .nrfutil"
     COMMAND ${CMAKE_COMMAND} -E env HOME=${NRFUTIL_HOME} ${NRFUTIL_EXECUTABLE} nrf5sdk-tools pkg generate
         --hw-version 52
         --sd-req 0x102
@@ -285,7 +285,7 @@ add_custom_target(ota_zip
 
 add_custom_target(settings_hex
     DEPENDS ${APP_TARGET}
-    COMMAND ${CMAKE_COMMAND} -E chdir ${NRFUTIL_HOME} sh -c "test -e .nrfutil || ln -s ${NRFUTIL_SEED_DIR} .nrfutil"
+    COMMAND ${CMAKE_COMMAND} -E chdir ${NRFUTIL_HOME} sh -c "echo \"[settings_hex] PWD=\$(pwd) .nrfutil exists?=\$(test -e .nrfutil && echo YES || echo NO) type=\$(file .nrfutil 2>/dev/null || echo missing)\"; test -e .nrfutil || ln -sv ${NRFUTIL_SEED_DIR} .nrfutil; ls -la .nrfutil"
     COMMAND ${CMAKE_COMMAND} -E env HOME=${NRFUTIL_HOME} ${NRFUTIL_EXECUTABLE} nrf5sdk-tools settings generate
         --family NRF52
         --application ${APP_HEX}
