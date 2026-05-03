@@ -146,7 +146,7 @@ set(APP_SOURCES
     ${SDK_PATH}/components/libraries/bootloader/dfu/nrf_dfu_svci.c
     ${SDK_PATH}/components/softdevice/common/nrf_sdh.c
     ${SDK_PATH}/components/softdevice/common/nrf_sdh_ble.c
-    ${SDK_PATH}/components/softdevice/common/nrf_sdh_freertos.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/patch/nrf_sdh_freertos.c
     ${SDK_PATH}/components/softdevice/common/nrf_sdh_soc.c
     ${SDK_PATH}/external/freertos/source/croutine.c
     ${SDK_PATH}/external/freertos/source/event_groups.c
